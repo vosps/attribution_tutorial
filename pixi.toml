@@ -1,0 +1,16 @@
+[workspace]
+channels = ["conda-forge"]
+name = "attribution_tutorial"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+xarray = ">=2026.1.0,<2027"
+numpy = ">=2.4.2,<3"
+xesmf = ">=0.6.0,<0.7"
+pandas = ">=3.0.0,<4"
+geopandas = ">=1.1.2,<2"
+exactextract = ">=0.3.0,<0.4"
+ipykernel = ">=7.1.0,<8"
