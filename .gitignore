@@ -9,6 +9,15 @@ __pycache__/
 # big files etc
 *.h5
 *.nc
+shapefiles/
+*.cpg
+*.dbf
+*.sbn
+*.prj
+*.sbx
+*.shp
+*.shx
+*.shp.xml
 
 
 # Distribution / packaging
