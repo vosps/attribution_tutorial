@@ -43,7 +43,7 @@ def process_data(historical,natural,observations,original,pop_density,pop_densit
     return historical,natural,observations,original,pop_density,pop_density_original_resolution
 
 
-def plot_timeseries(timeseries_historical, timeseries_natural, title='Daily Mean Temperature - Salvador'):
+def plot_timeseries(timeseries_historical, timeseries_natural, title='Daily Mean Temperature'):
     """
     Plot population-weighted temperature timeseries for historical and natural
     forcing runs, with an inset showing the first austral summer.
@@ -96,7 +96,7 @@ def plot_timeseries(timeseries_historical, timeseries_natural, title='Daily Mean
     plt.show()
     
 def plot_climatology(timeseries_historical, timeseries_natural, timeseries_obs, timeseries_original=None,
-                     title='Climatology - Salvador', smooth_window=15):
+                     title='Climatology', smooth_window=15):
     """
     Calculate and plot smoothed day-of-year climatologies for historical,
     natural, observational (and optionally original-resolution) timeseries.
