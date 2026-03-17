@@ -502,7 +502,7 @@ def adjust_bias_one_location(
         return None
 
     # otherwise continue
-    print(i_loc)
+    # print(i_loc) # Uncomment this to track progress of bias adjustment at different locations. Note that this can produce a lot of output if there are many locations.
     n_variables = len(variable)
     None_list = [None] * n_variables
     result = [d.data.copy() if isinstance(d, np.ma.MaskedArray) else d.copy()
