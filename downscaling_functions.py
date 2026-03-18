@@ -286,7 +286,7 @@ def downscale_one_location_array(
             return None
 
     # otherwise continue
-    print(i_loc_coarse)
+    # print(i_loc_coarse) # Uncomment this to print location index for each coarse grid cell being processed. Note can output a lot of lines if there are many coarse grid cells.
 
     # compute mean value over all time steps for invalid value sampling
     long_term_mean = {}
