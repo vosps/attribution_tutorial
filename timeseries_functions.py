@@ -15,7 +15,7 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
 
 
 
-def process_data(historical,natural,observations,original,pop_density,pop_density_original_resolution):
+def process_data(historical, natural, observations, original, pop_density, pop_density_original_resolution, bias_not_downscaled=None):
     
     # crop the edge to match pop density format
     historical = historical.isel(lat=slice(1,83), lon=slice(1,83))
@@ -38,9 +38,16 @@ def process_data(historical,natural,observations,original,pop_density,pop_densit
     pop_density_original_resolution = pop_density_original_resolution.assign_coords(
         lon=(pop_density_original_resolution.lon + 180) % 360 - 180
     ).sortby('lon')
-    # pop_density_original_resolution = pop_density_original_resolution.rio.write_crs("EPSG:4674", inplace=True)
+
+    # Process bias_not_downscaled: same resolution as original so needs lon conversion
+    bias_not_downscaled.rio.write_crs("EPSG:4674", inplace=True)
+    bias_not_downscaled = bias_not_downscaled.assign_coords(
+            lon=(bias_not_downscaled.lon + 180) % 360 - 180
+     ).sortby('lon')
+    # rassign data variable to tas
+    bias_not_downscaled = bias_not_downscaled.rename({'__xarray_dataarray_variable__': 'tas'})
     
-    return historical,natural,observations,original,pop_density,pop_density_original_resolution
+    return historical, natural, observations, original, pop_density, pop_density_original_resolution, bias_not_downscaled
 
 
 def plot_timeseries(timeseries_historical, timeseries_natural, title='Daily Mean Temperature'):
@@ -157,10 +164,10 @@ def plot_climatology(timeseries_historical, timeseries_natural, timeseries_obs, 
     plt.show()
     
 
-def plot_region(region_name, shapefile, original, historical, vmin=24, vmax=30):
+def plot_region(region_name, shapefile, original, historical, bias_not_downscaled=None, vmin=24, vmax=30, n_levels=7):
     """
-    Plot a 2-panel comparison of original vs downscaled temperature
-    for a given RGI region, with a Brazil locator inset.
+    Plot a comparison of original vs (optionally) bias-corrected vs downscaled temperature
+    for a given RGI region, with a Brazil locator inset and discrete colorbar.
 
     Parameters
     ----------
@@ -172,29 +179,44 @@ def plot_region(region_name, shapefile, original, historical, vmin=24, vmax=30):
         Original resolution temperature dataset.
     historical : xr.Dataset
         Downscaled historical temperature dataset.
+    bias_not_downscaled : xr.Dataset, optional
+        Bias-corrected but not downscaled dataset. If provided, a middle panel is added.
     vmin, vmax : float
         Colorbar range in °C.
+    n_levels : int
+        Number of discrete colour levels. Default is 7.
     """
+    import matplotlib as mpl
+
     region = shapefile[shapefile['nome_rgi'] == region_name]
     bounds = region.total_bounds
     brazil_bounds = shapefile.total_bounds
-    cmap = 'RdYlBu_r'
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6),
-                             subplot_kw={'projection': ccrs.PlateCarree()})
+    step = max(1, int(np.round((vmax - vmin) / n_levels)))
+    levels = np.arange(int(vmin), int(vmax) + step, step)
+    n_colors = len(levels) - 1
+    cmap = plt.get_cmap('RdYlBu_r', n_colors)
+    norm = mpl.colors.BoundaryNorm(levels, ncolors=n_colors)
 
     datasets = [
         (original.sel(time='2005-01-01').tas,  3.0, 'Original Resolution (~2.8°)'),
-        (historical.sel(time='2005-01-01').tas, 1.0, 'Downscaled (0.5°)'),
     ]
+    if bias_not_downscaled is not None:
+        datasets.append((bias_not_downscaled.sel(time='2005-01-01').tas, 3.0, 'Bias corrected (~1°)'))
+    datasets.append((historical.sel(time='2005-01-01').tas, 1.0, 'Downscaled (0.5°)'))
+
+    n_panels = len(datasets)
+    fig, axes = plt.subplots(1, n_panels, figsize=(7 * n_panels, 6),
+                             subplot_kw={'projection': ccrs.PlateCarree()})
+    if n_panels == 1:
+        axes = [axes]
 
     for ax, (data, pad, title) in zip(axes, datasets):
         im = data.plot(
             ax=ax,
             transform=ccrs.PlateCarree(),
             cmap=cmap,
-            vmin=vmin,
-            vmax=vmax,
+            norm=norm,
             add_colorbar=False,
             zorder=1,
         )
@@ -203,12 +225,13 @@ def plot_region(region_name, shapefile, original, historical, vmin=24, vmax=30):
         ax.set_extent([bounds[0] - pad, bounds[2] + pad, bounds[1] - pad, bounds[3] + pad])
         ax.set_title(title, fontsize=18)
 
-    # shared colorbar
-    cbar = fig.colorbar(im, ax=axes, orientation='vertical', shrink=0.7, pad=0.02)
+    # shared discrete colorbar
+    cbar = fig.colorbar(im, ax=axes, orientation='vertical', shrink=0.7, pad=0.02,
+                        ticks=levels, spacing='uniform')
     cbar.set_label('Temperature (°C)')
 
     # locator map: right side of figure, no box
-    ax_inset = fig.add_axes([0.82, 0.70, 0.17, 0.32], projection=ccrs.PlateCarree())
+    ax_inset = fig.add_axes([0.75, 0.75, 0.2, 0.35], projection=ccrs.PlateCarree())
     shapefile.plot(ax=ax_inset, color='lightgrey', edgecolor='grey', linewidth=0.3, transform=ccrs.PlateCarree())
     region.plot(ax=ax_inset, color='red', edgecolor='red', linewidth=0.5, transform=ccrs.PlateCarree())
     ax_inset.set_extent([brazil_bounds[0], brazil_bounds[2], brazil_bounds[1], brazil_bounds[3]])
@@ -218,5 +241,6 @@ def plot_region(region_name, shapefile, original, historical, vmin=24, vmax=30):
     for spine in ax_inset.spines.values():
         spine.set_visible(False)
 
+    fig.suptitle('Bias correction and downscaling', fontsize=24, y=1.01)
     plt.show()
 
